@@ -1,0 +1,120 @@
+/*
+ * Created by: Benjamin Edwards
+ * Date: 12/17/20
+ * Description: The server of the game NIM, it waits for two players to join then lets player 1 start first. It is multi-threaded 
+ * 				and puts two clients into their own session. The server accepts counter values from the clients and updates their images.
+ * 				When the counter reaches 0 then it displays to both clients who the winner is.
+ * 
+ */
+
+
+
+import java.io.*;
+import java.net.*;
+
+
+public class Server /*extends Application*/ {
+	
+	static DataOutputStream toClient1;
+	static DataInputStream fromClient1;
+	static DataOutputStream toClient2;
+	static DataInputStream fromClient2;
+	
+	public static void main(String[] args) throws IOException {
+		
+		ServerSocket serverSocket = new ServerSocket(7777);
+		System.out.println("Waiting for clients");
+		
+		while(true) {
+			
+			
+			Socket client1 = serverSocket.accept();
+			System.out.println("Client 1 Connected");
+			
+			
+			toClient1 = new DataOutputStream(client1.getOutputStream());
+			toClient1.writeInt(1); // lets client 1 know that they are first player
+			toClient1.writeUTF("You are player 1");
+			toClient1.flush();
+			
+			 
+			Socket client2 = serverSocket.accept();
+			System.out.println("Client 2 connected");
+			
+			toClient2 = new DataOutputStream(client2.getOutputStream());
+			toClient2.writeInt(2);
+			toClient2.writeUTF("You are player 2");
+			toClient2.flush();
+			sessionHandler task = new sessionHandler(client1, client2); //creates a task for 2 players
+			new Thread(task).start();
+		}
+	}		
+		
+}
+
+class sessionHandler implements Runnable{
+	  int counter = 10;
+	  int turnCounter = 1;
+	  int winCounter = 0;
+	  private Socket client1;
+	  private Socket client2;
+	
+	
+	public sessionHandler(Socket client1, Socket client2) {
+	    this.client1 = client1;
+	    this.client2 = client2;
+	  }
+	
+	public void run() {
+
+	    try {
+	    	DataInputStream fromClient1 = new DataInputStream(client1.getInputStream());
+	        DataOutputStream toClient1 = new DataOutputStream(client1.getOutputStream());
+	        DataInputStream fromClient2 = new DataInputStream(client2.getInputStream());
+	        DataOutputStream toClient2 = new DataOutputStream(client2.getOutputStream());
+	    	toClient1.writeInt(2); //lets player 1 that player 2 has joined
+	    	while(true) {							//When client presses a button it send chosenNum value to server where the 
+	    											//server keeps track with a counter and then sends the information to the other client
+	    		if(turnCounter%2 ==1) {
+					int chosenNum = fromClient1.readInt();
+					if(chosenNum == 1) {
+						counter = counter - 1;
+						toClient2.writeInt(counter);
+					}else {
+						counter = counter - 2;
+						toClient2.writeInt(counter);
+					}
+	    		}else {
+	    			int chosenNum = fromClient2.readInt();
+					if(chosenNum == 1) {
+						counter = counter - 1;
+						toClient1.writeInt(counter);
+					}else {
+						counter = counter - 2;
+						toClient1.writeInt(counter);
+					}
+	    			
+	    		}
+	    		
+	    		if(winCounter >= counter) {							// if all the red ball images are gone, the player who acted last wins
+	    			
+	    			if(turnCounter%2 == 1) {
+	    				toClient1.writeUTF("PLAYER 1 HAS WON!!!");
+	    	            toClient2.writeUTF("PLAYER 1 HAS WON!!!");
+	    			}else {
+	    				toClient1.writeUTF("PLAYER 2 HAS WON!!!");
+	    	            toClient2.writeUTF("PLAYER 2 HAS WON!!!");
+	    				
+	    			}
+	    		}
+	    	}
+	    } catch(IOException ex) {
+	        System.out.println(ex);
+	    }
+	
+			
+			//toClient1.flush();
+		
+	}
+}
+
