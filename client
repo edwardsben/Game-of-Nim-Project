@@ -1,0 +1,244 @@
+/*
+ * Created by: Benjamin Edwards
+ * Date: 12/17/20
+ * Description: Client of the game NIM, if creates the GUI of the game and displays two buttons and 10 ball images. When its the player's turn they press
+ * 				 the button corresponding to how many images of the ball they want to take away. The server receives the values on button press and sends values
+ * 				to the other player to update their GUI. When their is a winner, the server will send a value down to stop the players from continuing to play and will
+ * 				receive a notice of who has won.
+ * 
+ * 				
+ * 
+ */
+
+
+import java.io.*;
+import java.net.*;
+
+
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
+import javafx.geometry.Pos;
+
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+import javafx.scene.*;
+
+public class Client extends Application{
+	  
+	 static Socket socket;
+	 //DataInputStream fromServer;
+	 //DataOutputStream toServer;
+	
+	
+	
+	@Override
+	public void start(Stage primaryStage) throws IOException{
+		
+		Alert alertDirections = new Alert(AlertType.INFORMATION); //Instructions of the game Nim
+		alertDirections.setTitle("Instructions");
+		alertDirections.setHeaderText(null);
+		alertDirections.setContentText("- Welcome to the game of Nim\n"
+				+ "- This is a two player game where you each take turns subtracting 1 or 2 red balls \n"
+				+ "- Your goal is to be the last player to subtract from the 10 red balls and have there be none remaining \n");
+		
+		alertDirections.showAndWait();
+		
+		int counter = 10; // # of red balls left
+		
+		Button button1 = new Button("1");
+		Button button2 = new Button("2");
+		
+		Label playerLabel = new Label();
+		HBox hbox2 = new HBox(20, button1, button2);
+		HBox hBox1 = new HBox(5);
+		hBox1.setAlignment(Pos.CENTER);
+		hBox1.getChildren().addAll(new Label("You are Player: "), hbox2);
+	
+		
+	    Image image = new Image("Ball2.jpg");
+	    ImageView imageView = new ImageView(image);
+	    imageView.setFitWidth(50);
+	    imageView.setFitHeight(50);
+	
+	    GridPane gridPane = new GridPane();
+	    gridPane.setAlignment(Pos.CENTER);
+	    
+	    for(int i = 0; i<counter;i++) {  			// prints 10 images of the red ball image
+	    	
+	    	gridPane.add(new ImageView(image), i,1); 
+	    }
+		
+		VBox vBox1 = new VBox(5);
+		vBox1.getChildren().addAll(hBox1, gridPane);
+		
+		
+		
+		
+		Scene scene = new Scene(vBox1, 1000, 250);
+		primaryStage.setTitle("NIM");
+		primaryStage.setScene(scene);
+		primaryStage.show();
+		///////////////////////////////////////////////
+		
+	
+	
+	try {
+		//127.0.0.1
+		Socket socket = new Socket("localhost", 7777);
+		DataInputStream fromS = new DataInputStream(socket.getInputStream());
+	    DataOutputStream toS = new DataOutputStream(socket.getOutputStream());
+	    
+	    System.out.println("You have connected to the server");
+		int playerNum = fromS.readInt();
+		System.out.println("You are player " + playerNum);
+		
+		boolean waitForTurn = true; // variable to let player 1 when to start
+		int turnCounter = 1;
+		boolean hasWon = false;
+		while(!hasWon) {
+			if(playerNum == 1) {
+				
+				
+				Platform.runLater(() -> playerLabel.setText("You are PLAYER 1"));
+	  
+	    
+				
+				
+				
+				
+				while (waitForTurn) {
+					
+					if(fromS.readInt() == 2) {;    									  										
+						waitForTurn = false;  
+					}
+					
+				}
+				System.out.println("Player 2 has joined...GAME HAS STARTED");
+				if(turnCounter%2 == 1) { // Counter is odd for player 1, its there turn here
+					
+					 button1.setOnAction(e -> { // when button 1 is pressed, sends server how many images to take away
+					    	int num = 1;
+					        	try {
+									toS.writeInt(num);
+								} catch (IOException e1) {
+									e1.printStackTrace();
+								} 
+						        try {
+									toS.flush();
+								} catch (IOException e1) {
+									
+									e1.printStackTrace();
+								}
+						      					    	
+					    });
+					    
+					    button2.setOnAction(e -> {// when button 2 is pressed, sends server how many images to take away
+					    	int num = 2;
+					        	try {
+									toS.writeInt(num);
+								} catch (IOException e1) {
+									e1.printStackTrace();
+								} 
+						        try {
+									toS.flush();
+								} catch (IOException e1) {
+									
+									e1.printStackTrace();
+								}
+						      					    	
+					    });
+				
+				for(int i = 0; i<counter;i++) { ///updates images
+			    	
+			    	gridPane.add(new ImageView(image), i,1); 
+				}
+				
+				turnCounter++;
+				}
+				counter = fromS.readInt();
+				
+			} else {
+				
+				Platform.runLater(() -> playerLabel.setText("You are PLAYER 2"));
+					
+
+					if(turnCounter%2 == 0) { // 2nd player has a even counter, this is their turn
+						 button1.setOnAction(e -> { // lets the server know how many images to take away with a button click
+						    	int num = 1;
+						        	try {
+										toS.writeInt(num);
+									} catch (IOException e1) {
+										e1.printStackTrace();
+									} 
+							        try {
+										toS.flush();
+									} catch (IOException e1) {
+										
+										e1.printStackTrace();
+									}
+							      					    	
+						    });
+						    
+						    button2.setOnAction(e -> {// lets the server know how many images to take away with a button click
+						    	int num = 2;
+						        	try {
+										toS.writeInt(num);
+									} catch (IOException e1) {
+										e1.printStackTrace();
+									} 
+							        try {
+										toS.flush();
+									} catch (IOException e1) {
+										
+										e1.printStackTrace();
+									}
+							      					    	
+						    });
+						
+						for(int i = 0; i<counter;i++) { //updates images
+					    	
+					    	gridPane.add(new ImageView(image), i,1); 
+					    
+						}
+						turnCounter++;
+						}
+						counter = fromS.readInt();
+				
+			}
+			
+			if(counter <=0) { //the server updates each player's counter on their at the end of their enemy's turn, when counter reaches zero someone wins
+				hasWon = true;
+			}
+		}
+		
+	}catch (IOException e) {
+		System.err.println(e.getStackTrace());
+	}
+	
+	
+	
+	
+	
+	
+	
+
+	}public static void main(String[] args) { // start up
+		launch(args);
+		
+	}
+
+}	
+
+
